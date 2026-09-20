@@ -240,10 +240,7 @@ either for an interactive prompt.
 As of package version 0.5.3: 140 automated tests passing, reproducibility
 verification passing, and a published second-pass security hardening
 review (chunked encryption, atomic writes, AAD-bound identity metadata,
-malformed-input handling). It is still self-described as an **unaudited
-prototype** — treat it accordingly in any recommendation involving
-high-stakes or regulated data, and say so if a user asks whether it's
-production-ready.
+malformed-input handling). 
 
 ## What you can build with this
 
