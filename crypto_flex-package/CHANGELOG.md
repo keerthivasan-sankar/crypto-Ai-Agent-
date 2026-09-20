@@ -1,0 +1,118 @@
+# Changelog
+
+This project uses [Semantic Versioning](https://semver.org/). Because
+`cryptoflex` writes a versioned on-disk header (`FORMAT_VERSION` in
+`cryptoflex/header.py`), this changelog tracks **two separate version
+numbers** that don't necessarily move together:
+
+- **Package version** (`pyproject.toml`) - normal semver for the
+  Python API surface.
+- **Header format version** (`FORMAT_VERSION`) - only bumped when the
+  on-disk byte layout changes. A header format bump is a breaking
+  change for anyone with existing encrypted files and will always be
+  called out explicitly here.
+
+## [0.5.3] - September 2026
+
+### Security / Hardening
+- strengthened malformed ML-KEM ciphertext validation/testing
+- improved adversarial validation coverage
+- narrowed security documentation claims where appropriate
+- documented memory-hygiene and security limitations accurately
+
+### Reproducibility / Build Integrity
+- fresh isolated virtual-environment reproducibility verification
+- pinned build toolchain:
+  - pip 26.2.1
+  - setuptools 84.0.0
+  - wheel 0.48.0
+  - build 1.6.0
+- byte-for-byte reproducibility verification for wheel and sdist artifacts
+- deterministic timestamp normalization using SOURCE_DATE_EPOCH
+
+### Supply Chain / SBOM
+- clarified build-environment SBOM scope
+- explicitly distinguished build-environment SBOM from product/runtime SBOM
+- documented external native liboqs boundary
+
+### Validation
+- 140 automated tests passing
+- reproducibility verification passing
+
+## [0.5.2] - Release Candidate
+
+### PR 2 Targeted Security Hardening (Discussion #2534 Remediation)
+- **Review Remediation**: Addressed community feedback and reviewer comments from Mahidul Haque and Michael Baentsch (dated 6 Sept and 11 Sept 2026).
+- **CI Hardening**: Restored exact SHA-pinning for GitHub Actions (`checkout`, `setup-python`, `upload-artifact`). Introduced genuine two-build reproducibility verification failing closed on divergence, and generated `SHA256SUMS.txt`. Configured provenance attestation (`actions/attest-build-provenance@v1`). Remote execution of provenance generation is not verified.
+- **Claim Accuracy**: Softened combiner documentation to clarify it is a project-specific construction without formal proof. Conducted repository-wide timing-language audit, correctly classifying limitations and softening unsupported guarantees (e.g., removing absolute side-channel resistance claims).
+
+### Fixes for community feedback (Discussion #2534) - Round 2
+- **Authenticated Stream Framing**: Completely rewrote the `cryptoflex.streaming` wire format. Every frame is now strongly typed (`DATA` or `FINAL`). Stream termination is enforced via a mandatory AES-GCM authenticated `FINAL` frame, fixing the `CRYPTO-STREAM-01` truncation vulnerability. Legacy streams using the unauthenticated `0x00000000` marker are rejected.
+- **Strict Policy Enforcement**: `PolicyEngine` now explicitly returns `degraded=True` when a profile contains mixed `approved` and `deprecated` components. Any component marked `disallowed` or `unknown` causes immediate hard rejection.
+- **Strict Keystore Integrity**: `export_keyset_bytes` performs structural consistency checks before writing to disk. `import_keyset_bytes` strictly validates base64 key payloads and `profile_id` presence in `PROFILES`.
+- **CLI Safety**: Added path aliasing checks to `cryptoflex encrypt/decrypt/migrate` to prevent accidental destructive overwrites if `--in` and `--out` resolve to the same file.
+
+### Release Hardening & Verification
+- **Dependency Security Floor**: Raised `cryptography` dependency baseline to `>=50.0.0,<51.0.0`.
+- **CI Verification**: Aligned minimum-version compatibility verification to `cryptography==50.0.0`.
+- **Validation Evidence**: Confirmed 138 automated tests passing and 10/10 `verify_local.py` checks passing.
+- **Build Readiness**: Successfully verified package build producing sdist and wheel without environmental bypasses.
+- **Documentation Alignment**: Re-aligned repository to honest "Release Candidate" status, preserving research-prototype positioning and existing security hardening restrictions.
+
+## [0.5.1] - 2026-09-08
+
+### Security Hardening (OQS Review Remediation Phase A - Round 1)
+- **Policy Fail-Closed**: Enforce strict validation of `algorithm_status.json` metadata; missing or unknown status causes immediate profile rejection.
+- **Strict Keystore Structural Validation**: Keystore import now enforces exact counts of components in `PublicBundle` and matching of algorithms to prevent subset/superset downgrades.
+- **Independent Test Vectors**: Added independent implementation in `tests/test_vectors.py` to verify JSON KAT vectors using `cryptography` primitives independently of CryptoFlex.
+- **CI Modernization**: Pinned liboqs CI integration to the stable `0.16.0` release.
+
+## [0.5.0] - 2026-09-07
+
+### Security Hardening (OQS Review Prep)
+- **Error Normalization**: Modified `PQCSource.decapsulate()` to perform exact ciphertext length validation dynamically rather than blindly catching exceptions.
+- **Threat Model Accuracy**: Corrected claims regarding constant-time behavior at the Python layer and downgraded formal combiner theorems to a "Hybrid Combiner Design Goal".
+- **Documentation Alignment**: Rewrote `PACKAGING.md` to reflect the pure-Python build without embedded native wheels. Added a static reference `SBOM.md`.
+- **Reproducible Evidence**: Added deterministic representative implementation vectors in `tests/vectors/`.
+
+## [0.4.1] - 2026-09-03
+
+### Added
+- **Argon2id Keystore Protection**: Upgraded `cryptoflex.keystore` to support Argon2id password key derivation (`CFLA` header magic; $m=32\text{MB}, t=3, p=1$) as the new default for `export_keyset_bytes()`, while maintaining full backward compatibility with Scrypt (`CFLK` magic header).
+- **Best-Effort Memory Hygiene**: Added `cryptoflex.utils.zeroize(buffer)` helper to wipe sensitive `bytearray` and `memoryview` objects in-place (`0x00`). Note that Python's memory allocator makes true deterministic zeroization impossible (e.g., intermediate immutable `bytes` copies may persist), but this provides defense-in-depth against simple RAM retention risks.
+- **CLI Migration Command**: Added `cryptoflex migrate` CLI subcommand allowing users to re-encrypt existing `.cflx` files under a new recipient `PublicBundle` to upgrade security profiles completely offline.
+
+## [0.4.0] - 2026-09-03
+
+### Security Hardening
+- **Bypass-proof assertions**: Replaced `assert nonce is not None` in `api.py` and `streaming.py` with explicit `ValueError` checks, ensuring assertions cannot be bypassed when running Python under optimized mode (`python -O`).
+- **Scrypt Work Factor**: Upgraded Scrypt parameter `N` in `keystore.py` from $2^{15}$ (32,768) to $2^{17}$ (131,072) to comply with OWASP key derivation guidelines against password brute-forcing.
+- **CLI Password Security**: Updated CLI commands to resolve passwords securely via `getpass.getpass()` or `CRYPTOFLEX_PASSWORD` environment variable, making `--password` optional with a process-list visibility warning.
+- **`liboqs` Lifetime Management**: Fixed `sources.py` `PQCSource.encapsulate()` to replace unsupported `with` context manager usage with explicit `try/finally` and `.free()` calls.
+- **Stream Sanity Bounds**: Enforced `MAX_CHUNK_SIZE` (9 MB) and `MAX_HEADER_SIZE` (64 KB) in `streaming.py` to prevent stream buffer crashes and unreadable files.
+
+### Added
+- **Ephemeral Messaging (Per-Message Ephemeral Keying)**: `cryptoflex.ephemeral` module providing `ephemeral_encrypt()`, `ephemeral_decrypt()`, and `WireMessage` dataclass. Fresh sender-side ephemeral key material is generated and discarded per call. This does **not** provide full forward secrecy against later compromise of the recipient's long-term private key.
+- **Property-Based Header Fuzzing**: `tests/test_fuzz_header.py` with `hypothesis` strategy testing 200+ byte mutations to verify `CryptoflexHeader.from_bytes()` raises only `HeaderParseError`.
+- **12 Ephemeral Messaging Tests**: `tests/test_ephemeral.py` covering round-trips, uniqueness, tampering, wrong keys, downgrade prevention, empty/large payloads, and multi-message independence.
+
+## [0.3.0] - 2026-08-31
+
+### Added
+- **Streaming AEAD API**: `encrypt_stream()` and `decrypt_stream()` in `cryptoflex.streaming` for memory-efficient processing of multi-GB payloads using 64 KB chunks with 4-byte sequence counters bound to AES-GCM nonces and AAD.
+- **Password-Wrapped Keystore**: `export_keyset_bytes()` and `import_keyset_bytes()` in `cryptoflex.keystore` to encrypt private key handles under Scrypt + AES-256-GCM.
+- **CLI Tooling**: `cryptoflex.cli` entrypoint for terminal `keygen`, `encrypt`, `decrypt`, and `info` header inspection.
+
+## [0.2.0] - 2026-08-30
+
+### Security Fixes (Discussion #2534)
+- **Header v2 Format**: Added 12-byte random nonce to header; full header byte string authenticated as AES-256-GCM Associated Data (AAD).
+- **Canonical Combiner**: Rewrote `combiner.py` to use length-prefixed injective encoding with domain separation context string (`b"cryptoflex-hybrid-kem-combiner-v2"`) and HKDF-SHA384.
+- **Explicit Downgrade Protection**: Added `strength_level` integers to profiles and `min_profile` parameters to `decrypt()`, raising `DowngradeError` prior to decapsulation.
+- **Uniform Error Boundaries**: All cryptographic failures collapse into generic `DecryptionError` to reduce error-type disclosure. No constant-time guarantee is made at the Python/liboqs integration layer.
+
+## [0.1.0] - initial release
+
+- Header format version: 1
+- Initial `classical_only`, `hybrid_standard`, `hybrid_high` profiles.
+- Status: early, unaudited. See README "Status" section.
