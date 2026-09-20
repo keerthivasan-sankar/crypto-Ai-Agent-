@@ -86,8 +86,6 @@ Once active, Claude can correctly:
 
 Not a fit for: network protocol design (TLS/VPN), systems needing a
 live/updatable threat feed, full forward-secrecy messaging protocols,
-or regulated production workloads requiring certified/audited
-cryptography — `cryptoflex` itself is unaudited.
 
 ## Full reference
 
