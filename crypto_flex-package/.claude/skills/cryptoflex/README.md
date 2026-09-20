@@ -112,12 +112,7 @@ migration examples, see `SKILL.md`.
 | `.cflk` | password-encrypted keystore: `CFLA` (Argon2id) or `CFLK` (Scrypt) magic + salt + nonce + AES-256-GCM ciphertext |
 | `.bundle.json` | plaintext `PublicBundle` — profile ID + public keys, safe to share |
 
-## Status
 
-Unaudited. 140 automated tests passing as of 0.5.3, with a published
-second security-hardening pass and reproducible-build verification — but
-still explicitly pre-audit. Don't represent it as audited or
-production-certified crypto.
 
 ## What can be built on this
 
